@@ -1,0 +1,7 @@
+{
+    "name": "my-awesome-package",
+    "version": "0.0.1",
+    "dependencies": {
+        "tailwindcss": "^1.2.0"
+    }
+}
