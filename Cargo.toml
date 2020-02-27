@@ -21,6 +21,7 @@ comp_state_seed_extras = "0.0.8"
 comrak = "0.7.0"
 web-sys = "^0.3.32"
 
+
 [dev-dependencies]
 wasm-bindgen-test = "0.2.50" # NOTE: keep in sync with wasm-bindgen version
 

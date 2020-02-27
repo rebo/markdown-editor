@@ -1,9 +1,9 @@
 #![feature(track_caller)]
 use comp_state::*;
 use comp_state_seed_extras::*;
-use comrak::{markdown_to_html, ComrakOptions};
 use seed::{prelude::*, *};
-
+use web_sys::{HtmlElement, HtmlTextAreaElement};
+mod alt_md;
 #[derive(Default)]
 struct Model {}
 
@@ -12,7 +12,7 @@ enum Msg {
     SubmitMarkdownHtml(String),
 }
 
-impl std::default::Default for Msg {
+impl Default for Msg {
     fn default() -> Self {
         Msg::NoOp
     }
@@ -30,61 +30,78 @@ fn view(_model: &Model) -> impl View<Msg> {
     markdown_editor(Msg::SubmitMarkdownHtml)
 }
 
-fn set_scroll(textarea: web_sys::HtmlTextAreaElement, preview: web_sys::HtmlElement) {
-    let scroll_percentage = (textarea.scroll_top() as f64) / (textarea.scroll_height() as f64);
-    let new_scroll_top = (preview.scroll_height() as f64) * scroll_percentage;
-    preview.set_scroll_top(new_scroll_top as i32);
-}
-
-#[topo::nested]
-fn markdown_editor(msg_handler: impl FnOnce(String) -> Msg + 'static + Clone) -> Node<Msg> {
+fn markdown_editor<Ms, F>(on_submit: F) -> Node<Ms>
+where
+    F: FnOnce(String) -> Ms + 'static + Clone,
+    Ms: Default + 'static,
+{
     let source = use_state(|| String::new());
-    let preview_el = use_state::<ElRef<web_sys::HtmlElement>, _>(ElRef::default);
-    let textarea_el = use_state::<ElRef<web_sys::HtmlTextAreaElement>, _>(ElRef::default);
-
-    let processed_md = markdown_to_html(&source.get(), &ComrakOptions::default());
+    let preview_el = use_state(ElRef::<HtmlElement>::default);
+    let textarea_el = use_state(ElRef::<HtmlTextAreaElement>::default);
 
     div![
         class!["flex flex-col"],
         div![
             class!["flex flex-row"],
-            div![class!("w-1/2"), "Markdown:"],
-            div![class!("w-1/2"), "Preview:"],
+            div![class!["w-1/2"], "Markdown:"],
+            div![class!["w-1/2"], "Preview:"],
         ],
         div![
-            class!["flex" "flex-row" "h-64"],
+            class!["flex flex-row h-64"],
             textarea![
                 el_ref(&textarea_el.get()),
                 bind(At::Value, source),
                 class!["font-mono p-2 h-full flex-none w-1/2 border-gray-200 border shadow-lg"],
                 attrs![At::Type => "textbox"],
-                textarea_el.input_ev(Ev::KeyUp, move |el, _| {
-                    if let (Some(textarea), Some(preview)) = (el.get(), preview_el.get().get()) {
-                        set_scroll(textarea, preview);
-                    }
-                }),
-                textarea_el.input_ev(Ev::Scroll, move |el, _| {
-                    if let (Some(textarea), Some(preview)) = (el.get(), preview_el.get().get()) {
-                        set_scroll(textarea, preview);
-                    }
-                })
+                scroll_event_handler(Ev::KeyUp ,textarea_el, preview_el),
+                scroll_event_handler(Ev::Scroll, textarea_el, preview_el),
             ],
             div![
-                class!["md-preview"],
                 el_ref(&preview_el.get()),
+                class!["markdown-body"],
                 class!["overflow-auto p-2 pl-4 h-full flex-none w-1/2 border-gray-200 bg-indigo-100 border shadow-lg"],
-                raw!(&processed_md)
+                md!(&source.get())
             ]
         ],
         div![
             class!["flex justify-end pt-2"],
             button![
                 class!["bg-green-400 p-4 m-2"],
-                "Submit",
-                mouse_ev(Ev::Click, move |_| msg_handler(processed_md))
+                "Submit (See console log)",
+                mouse_ev(Ev::Click, move |_| {
+                    let markdown_element = preview_el.get().get().expect("markdown-body doesn't exist");
+                    on_submit(markdown_element.inner_html())
+                })
             ]
         ]
     ]
+}
+
+fn scroll_event_handler<Ms>(
+    event: Ev,
+    textarea_el: StateAccess<ElRef<HtmlTextAreaElement>>,
+    preview_el: StateAccess<ElRef<HtmlElement>>,
+) -> EventHandler<Ms>
+where
+    Ms: 'static + Default,
+{
+    textarea_el.input_ev(event, move |el, _| {
+        if let (Some(textarea), Some(preview)) = (el.get(), preview_el.get().get()) {
+            let textarea_scroll_percentage = {
+                let textarea_max_scroll_top = textarea.scroll_height() - textarea.client_height();
+                if textarea_max_scroll_top == 0 {
+                    0.
+                } else {
+                    f64::from(textarea.scroll_top()) / f64::from(textarea_max_scroll_top)
+                }
+            };
+            let new_preview_scroll_top = {
+                let preview_max_scroll_top = preview.scroll_height() - preview.client_height();
+                f64::from(preview_max_scroll_top) * textarea_scroll_percentage
+            };
+            preview.set_scroll_top(new_preview_scroll_top as i32);
+        }
+    })
 }
 
 #[wasm_bindgen(start)]
