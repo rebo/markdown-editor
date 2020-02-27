@@ -1,43 +1,8 @@
 @tailwind base;
 
-div.md-preview {
-    @apply overflow-auto
+.markdown-body ol, .markdown-body ul {
+  list-style-type: unset;
 }
-
-div.md-preview h1 {
-    @apply text-2xl;
-    @apply underline;
-    @apply mb-2;
-  }
-  div.md-preview h2 {
-    @apply text-xl;
-    @apply mb-2;
-  }
-  div.md-preview h3 {
-    @apply text-lg;
-    @apply mb-2;
-  }
-
-  div.md-preview p {
-    @apply mb-2;
-  }
-
-  div.md-preview a {
-    @apply text-blue-600;
-    @apply underline;
-  }
-  div.md-preview li {
-    @apply pl-2;
-    @apply ml-6;
-  }
-
-  div.md-preview ul {
-    list-style-type: circle;
-  }
-
-  div.md-preview ol {
-    list-style-type: lower-alpha;
-  }
 
 @tailwind components;
 
